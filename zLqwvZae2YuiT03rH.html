@@ -1,0 +1,168 @@
+<html><head><base href="https://warehouse-planner.websim.ai/"><title>Planificador de Almacén 3D</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        height: 100vh;
+    }
+    #inputPanel {
+        width: 300px;
+        padding: 20px;
+        background-color: #f0f0f0;
+        overflow-y: auto;
+    }
+    #renderCanvas {
+        flex-grow: 1;
+    }
+    h1 {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+    label {
+        display: block;
+        margin-top: 10px;
+    }
+    input[type="number"] {
+        width: 100%;
+        padding: 5px;
+        margin-top: 5px;
+    }
+    button {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    button:hover {
+        background-color: #45a049;
+    }
+    #results {
+        margin-top: 20px;
+    }
+</style>
+</head>
+<body>
+    <div id="inputPanel">
+        <h1>Planificador de Almacén 3D</h1>
+        <label for="length">Longitud (m):</label>
+        <input type="number" id="length" min="1" step="0.1" value="10">
+        
+        <label for="width">Ancho (m):</label>
+        <input type="number" id="width" min="1" step="0.1" value="8">
+        
+        <label for="height">Altura (m):</label>
+        <input type="number" id="height" min="1" step="0.1" value="5">
+        
+        <label for="density">Densidad de almacenamiento (m³/m³):</label>
+        <input type="number" id="density" min="0.1" max="1" step="0.01" value="0.5">
+        
+        <button onclick="calculateAndRender()">Calcular y Renderizar</button>
+        
+        <div id="results"></div>
+    </div>
+    <div id="renderCanvas"></div>
+
+    <script>
+        let scene, camera, renderer, warehouse, boxes;
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+            document.getElementById('renderCanvas').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+
+            camera.position.set(15, 15, 15);
+            camera.lookAt(0, 0, 0);
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function calculateAndRender() {
+            const length = parseFloat(document.getElementById('length').value);
+            const width = parseFloat(document.getElementById('width').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const density = parseFloat(document.getElementById('density').value);
+
+            const volume = length * width * height;
+            const capacity = volume * density;
+
+            document.getElementById('results').innerHTML = `
+                <h2>Resultados:</h2>
+                <p>Volumen total: ${volume.toFixed(2)} m³</p>
+                <p>Capacidad de almacenamiento: ${capacity.toFixed(2)} m³</p>
+            `;
+
+            renderWarehouse(length, width, height, capacity);
+        }
+
+        function renderWarehouse(length, width, height, capacity) {
+            if (warehouse) scene.remove(warehouse);
+            if (boxes) scene.remove(boxes);
+
+            warehouse = new THREE.Group();
+            boxes = new THREE.Group();
+
+            // Crear el almacén
+            const warehouseGeometry = new THREE.BoxGeometry(length, height, width);
+            const warehouseMaterial = new THREE.MeshPhongMaterial({color: 0xcccccc, transparent: true, opacity: 0.5});
+            const warehouseMesh = new THREE.Mesh(warehouseGeometry, warehouseMaterial);
+            warehouseMesh.position.set(length/2, height/2, width/2);
+            warehouse.add(warehouseMesh);
+
+            // Crear cajas que representan la capacidad
+            const boxSize = 0.5;
+            const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+            const boxMaterial = new THREE.MeshPhongMaterial({color: 0x4CAF50});
+
+            const boxCount = Math.floor(capacity / Math.pow(boxSize, 3));
+            for (let i = 0; i < boxCount; i++) {
+                const box = new THREE.Mesh(boxGeometry, boxMaterial);
+                box.position.set(
+                    Math.random() * (length - boxSize) + boxSize/2,
+                    Math.random() * (height - boxSize) + boxSize/2,
+                    Math.random() * (width - boxSize) + boxSize/2
+                );
+                boxes.add(box);
+            }
+
+            scene.add(warehouse);
+            scene.add(boxes);
+
+            // Ajustar la cámara
+            const maxDimension = Math.max(length, width, height);
+            camera.position.set(maxDimension * 1.5, maxDimension * 1.5, maxDimension * 1.5);
+            camera.lookAt(length/2, height/2, width/2);
+        }
+
+        window.onload = initThreeJS;
+        window.addEventListener('resize', function() {
+            camera.aspect = (window.innerWidth - 300) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 300, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
